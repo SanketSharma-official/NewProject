@@ -1,32 +1,49 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { catchError, Observable, throwError } from 'rxjs';
 import { environment } from '../../environments/environment.development';
-import { PersonModel } from './person.model';
+import { CreatePersonDto, PersonModel, UpdatePersonDto } from './person.model';
 
 @Injectable({
-  providedIn: 'root'
+    providedIn: 'root'
 })
 export class PersonService {
-  private readonly http = inject(HttpClient);
-  private url = environment.apiUrl + '/people'; // localhost:5152/api/people
 
-  getPeople() {
-    return this.http.get<PersonModel[]>(this.url);
-  }
+    private readonly http = inject(HttpClient);
+    private readonly baseUrl = `${environment.apiUrl}/people`;
 
-  getPerson(id: number) {
-    return this.http.get<PersonModel>(`${this.url}/${id}`);
-  }
+    getPeople(): Observable<PersonModel[]> {
+        return this.http
+            .get<PersonModel[]>(this.baseUrl)
+            .pipe(catchError(this.handleError));
+    }
 
-  addPerson(person: PersonModel) {
-    return this.http.post<PersonModel>(this.url, person);
-  }
+    getPerson(id: number): Observable<PersonModel> {
+        return this.http
+            .get<PersonModel>(`${this.baseUrl}/${id}`)
+            .pipe(catchError(this.handleError));
+    }
 
-  updatePerson(person: PersonModel) {
-    return this.http.put<void>(`${this.url}/${person.id}`, person);
-  }
+    addPerson(dto: CreatePersonDto): Observable<PersonModel> {
+        return this.http
+            .post<PersonModel>(this.baseUrl, dto)
+            .pipe(catchError(this.handleError));
+    }
 
-  deletePerson(id: number) {
-    return this.http.delete<void>(`${this.url}/${id}`);
-  }
+    updatePerson(dto: UpdatePersonDto): Observable<PersonModel> {
+        return this.http
+            .put<PersonModel>(`${this.baseUrl}/${dto.id}`, dto)
+            .pipe(catchError(this.handleError));
+    }
+
+    deletePerson(id: number): Observable<void> {
+        return this.http
+            .delete<void>(`${this.baseUrl}/${id}`)
+            .pipe(catchError(this.handleError));
+    }
+
+    private handleError(error: any) {
+        console.error('API Error:', error);
+        return throwError(() => error);
+    }
 }

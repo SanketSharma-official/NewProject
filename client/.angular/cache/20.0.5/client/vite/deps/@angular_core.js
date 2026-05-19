@@ -399,7 +399,7 @@ import {
   ɵɵvalidateIframeAttribute,
   ɵɵviewQuery,
   ɵɵviewQuerySignal
-} from "./chunk-SBF4OHW3.js";
+} from "./chunk-E6TNJ2DN.js";
 import {
   CONTAINER_HEADER_OFFSET,
   ChangeDetectionScheduler,
@@ -477,7 +477,8 @@ import {
   ɵɵnamespaceSVG,
   ɵɵresetView,
   ɵɵrestoreView
-} from "./chunk-ACM6HSXB.js";
+} from "./chunk-74OFFTCV.js";
+import "./chunk-3KKC7HMJ.js";
 import "./chunk-WDMUDEB6.js";
 export {
   ANIMATION_MODULE_TYPE,

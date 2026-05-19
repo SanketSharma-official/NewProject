@@ -1,5 +1,5 @@
 using FluentValidation;
-using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PersonCrud.Api.Models;
 
@@ -9,115 +9,115 @@ public static class PersonEndpoints
 {
     public static void MapPersonEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/people", async (AppDbContext context) =>
+        var group = app.MapGroup("/api/people");
+
+        // GET ALL
+        group.MapGet("/", async (
+            [FromServices] AppDbContext db) =>
         {
-            try
-            {
-                var people = await context.People.ToListAsync(); // retriving all rows and columns from the database (select Id,FirstName,LastName from People)
-                return Results.Ok(people); // 200 Ok + pass data
-            }
-            catch (Exception ex)
-            {
-                return Results.InternalServerError(ex.Message); // 500 Internal Server Error + error message
-            }
-        }
-        );
+            var people = await db.People.AsNoTracking().ToListAsync();
+            return Results.Ok(people);
+        });
 
-
-        app.MapGet("/api/people/{id:int}", async (int id, AppDbContext context) =>
+        // GET BY ID
+        group.MapGet("/{id:int}", async (
+            [FromRoute] int id,
+            [FromServices] AppDbContext db) =>
         {
-            try
-            {
-                var person = await context.People.FindAsync(id);
+            var person = await db.People.FindAsync(id);
 
-                if (person is null)
-                {
-                    return Results.NotFound();
-                }
+            return person is null
+                ? Results.NotFound()
+                : Results.Ok(person);
+        })
+        .WithName("GetPersonById");
 
-                return Results.Ok(person); // 200 Ok + pass data
-            }
-            catch (Exception ex)
-            {
-                return Results.InternalServerError(ex.Message); // 500 Internal Server Error + error message
-            }
-        }
-        ).WithName("GetPersonById");
-
-
-        app.MapPost("/api/people", async (IValidator<Person> personValidator, AppDbContext context, Person person) =>
+        // CREATE
+        group.MapPost("/", async (
+            [FromServices] IValidator<CreatePersonDto> validator,
+            [FromServices] AppDbContext db,
+            [FromBody] CreatePersonDto dto) =>
         {
-            try
+            var validation = await validator.ValidateAsync(dto);
+
+            if (!validation.IsValid)
+                return Results.ValidationProblem(validation.ToDictionary());
+
+            var person = new Person
             {
-                var validationResult = await personValidator.ValidateAsync(person);
+                FirstName   = dto.FirstName,
+                LastName    = dto.LastName,
+                Email       = dto.Email,
+                PhoneNumber = dto.PhoneNumber,
+                DateOfBirth = dto.DateOfBirth,
+                Address     = dto.Address,
+                City        = dto.City,
+                Country     = dto.Country,
+                IsActive    = dto.IsActive,
+                Status      = dto.Status,
+                CreatedAt   = DateTime.UtcNow
+            };
 
-                if (!validationResult.IsValid)
-                {
-                    return Results.ValidationProblem(validationResult.ToDictionary());
-                }
+            db.People.Add(person);
+            await db.SaveChangesAsync();
 
-                context.People.Add(person);
-                await context.SaveChangesAsync();
-                return Results.CreatedAtRoute("GetPersonById", new { id = person.Id }, person); // 201 Created + location of the resource + created data
-            }
-            catch (Exception ex)
-            {
-                return Results.InternalServerError(ex.Message); // 500 Internal Server Error + error message
-            }
-        }
-        );
+            return Results.CreatedAtRoute(
+                "GetPersonById",
+                new { id = person.Id },
+                person);
+        });
 
-        app.MapPut("/api/people/{id:int}", async (IValidator<Person> personValidator, int id, AppDbContext context, Person person) =>
-       {
-           try
-           {
-               var validationResult = await personValidator.ValidateAsync(person);
+        // UPDATE
+        group.MapPut("/{id:int}", async (
+            [FromRoute] int id,
+            [FromServices] IValidator<UpdatePersonDto> validator,
+            [FromServices] AppDbContext db,
+            [FromBody] UpdatePersonDto dto) =>
+        {
+            if (id != dto.Id)
+                return Results.BadRequest("Route id does not match body id.");
 
-               if (!validationResult.IsValid)
-               {
-                   return Results.ValidationProblem(validationResult.ToDictionary());
-               }
-               if (id != person.Id)
-               {
-                   return Results.BadRequest("Id mismatch");
-               }
+            var validation = await validator.ValidateAsync(dto);
 
-               if (!await context.People.AnyAsync(p => p.Id == id))
-               {
-                   return Results.NotFound();
-               }
+            if (!validation.IsValid)
+                return Results.ValidationProblem(validation.ToDictionary());
 
-               context.People.Update(person);
-               await context.SaveChangesAsync();
-               return Results.NoContent(); // 204 No Content
-           }
-           catch (Exception ex)
-           {
-               return Results.InternalServerError(ex.Message); // 500 Internal Server Error + error message
-           }
-       }
-       );
+            var person = await db.People.FindAsync(id);
 
+            if (person is null)
+                return Results.NotFound();
 
-        app.MapDelete("/api/people/{id:int}", async (int id, AppDbContext context) =>
-       {
-           try
-           {
-               var person = await context.People.FindAsync(id);
-               if (person is null)
-               {
-                   return Results.NotFound();
-               }
+            person.FirstName   = dto.FirstName;
+            person.LastName    = dto.LastName;
+            person.Email       = dto.Email;
+            person.PhoneNumber = dto.PhoneNumber;
+            person.DateOfBirth = dto.DateOfBirth;
+            person.Address     = dto.Address;
+            person.City        = dto.City;
+            person.Country     = dto.Country;
+            person.IsActive    = dto.IsActive;
+            person.Status      = dto.Status;
+            person.UpdatedAt   = DateTime.UtcNow;
 
-               context.People.Remove(person);
-               await context.SaveChangesAsync();
-               return Results.NoContent(); // 204 No Content
-           }
-           catch (Exception ex)
-           {
-               return Results.InternalServerError(ex.Message); // 500 Internal Server Error + error message
-           }
-       }
-       );
+            await db.SaveChangesAsync();
+
+            return Results.Ok(person);
+        });
+
+        // DELETE
+        group.MapDelete("/{id:int}", async (
+            [FromRoute] int id,
+            [FromServices] AppDbContext db) =>
+        {
+            var person = await db.People.FindAsync(id);
+
+            if (person is null)
+                return Results.NotFound();
+
+            db.People.Remove(person);
+            await db.SaveChangesAsync();
+
+            return Results.NoContent();
+        });
     }
 }
