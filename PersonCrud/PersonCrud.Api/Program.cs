@@ -21,7 +21,8 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddScoped<IValidator<Person>, PersonValidator>();
-
+builder.Services.AddScoped<IValidator<CreatePersonDto>, CreatePersonDtoValidator>();
+builder.Services.AddScoped<IValidator<UpdatePersonDto>, UpdatePersonDtoValidator>();
 var app = builder.Build();
 app.UseCors(MyAllowSpecificOrigins);
 
